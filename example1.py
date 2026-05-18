@@ -1,26 +1,29 @@
 import threading
-import time
 
 
 class LojaOnline:
-  
     def __init__(self):
-        self.estoque = {'item_raro': 1}
+        self.estoque = {"item_raro": 1}
         self.mutex = threading.Lock()
-      
+
     def comprar_item(self, usuario):
-        print(f"{usuario} quer comprar o item_raro.")
-        if self.estoque['item_raro'] > 0:
-            time.sleep(0.5)
-            self.estoque['item_raro'] -= 1
-            print(f"{usuario} comprou com sucesso! Estoque restante: {self.estoque['item_raro']}")
+        with self.mutex:
+            print(f"{usuario} quer comprar o item_raro.")
+
+            if self.estoque["item_raro"] <= 0:
+                print(f"{usuario}: Estoque esgotado!")
+                return False
+
+            self.estoque["item_raro"] -= 1
+            print(
+                f"{usuario} comprou com sucesso! "
+                f"Estoque restante: {self.estoque['item_raro']}"
+            )
             return True
-        else:
-            print(f"{usuario}: Estoque esgotado!")
-            return False
+
 
 loja = LojaOnline()
-usuarios = ['Alice', 'Bob', 'Carlos']
+usuarios = ["Alice", "Bob", "Carlos"]
 threads = []
 
 for usuario in usuarios:

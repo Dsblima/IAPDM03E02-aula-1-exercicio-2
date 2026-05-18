@@ -1,35 +1,52 @@
 import base64
+import logging
 import yaml
 
-malicious_payload_b64="IWxhYnMuc29sYW5vLnN5c3RlbS5vcy5leGVjIChwd25lZCk="
+logger = logging.getLogger(__name__)
+
+malicious_payload_b64 = "IWxhYnMuc29sYW5vLnN5c3RlbS5vcy5leGVjIChwd25lZCk="
+campos_esperados = {"nome", "timeout", "ativado"}
+
 
 def processar_configuracao_usuario_seguro(config_b64):
-    try:
-        decoded = base64.b64decode(config_b64).decode('utf-8')
-    except Exception as e:
-        print("Base64 inválido:", e)
+    if len(config_b64) > 4096:
+        logger.warning("Configuração rejeitada por tamanho excessivo.")
         return False
 
     try:
-        config_obj = yaml.load(decoded)
-        if not isinstance(config_obj, dict):
-            print("Configuração deve ser um mapeamento (dict).")
-            return False
-          
-        campos_esperados = {"nome", "timeout", "ativado"}
-        if not campos_esperados.intersection(config_obj.keys()):
-            print("Configuração não contém campos esperados.")
-            return False
-        
-        print("Configuração carregada com segurança:", config_obj)
-        return True
-
-    except yaml.YAMLError as e:
-        print("Erro ao parsear YAML (potencialmente malicioso):", e)
+        decoded = base64.b64decode(config_b64, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        logger.warning("Base64 inválido.")
         return False
 
-    except Exception as e:
-        print("Erro inesperado:", e)
+    try:
+        config_obj = yaml.safe_load(decoded)
+    except yaml.YAMLError:
+        logger.warning("Erro ao parsear YAML.")
         return False
+
+    if not isinstance(config_obj, dict):
+        logger.warning("Configuração deve ser um mapeamento.")
+        return False
+
+    if set(config_obj.keys()) != campos_esperados:
+        logger.warning("Configuração contém campos inválidos ou ausentes.")
+        return False
+
+    if not isinstance(config_obj["nome"], str):
+        logger.warning("Campo nome inválido.")
+        return False
+
+    if not isinstance(config_obj["timeout"], int) or not 1 <= config_obj["timeout"] <= 300:
+        logger.warning("Campo timeout inválido.")
+        return False
+
+    if not isinstance(config_obj["ativado"], bool):
+        logger.warning("Campo ativado inválido.")
+        return False
+
+    logger.info("Configuração carregada com segurança.")
+    return True
+
 
 processar_configuracao_usuario_seguro(malicious_payload_b64)
